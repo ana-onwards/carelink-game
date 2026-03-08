@@ -76,7 +76,7 @@ def init_db():
             ("ario", "ario2026", "Ario"),
             ("lawrence", "lawrence2026", "Lawrence"),
             ("piyush", "piyush2026", "Piyush"),
-            ("gaetan", "gaetan2026", "Gaétan"),
+            ("gaetan", "gaetan2026", "Gaetan"),
         ]
         for username, password, display_name in users:
             cursor.execute(
