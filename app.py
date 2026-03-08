@@ -3,7 +3,7 @@
 import streamlit as st
 import random
 import db
-from cards import DEPARTMENTS, BEHAVIORS, BACKSTORY, MISSION_TEXT
+from cards import DEPARTMENTS, BEHAVIORS, BACKSTORY, MISSION_TEXT, get_departments_with_overrides, get_behaviors_with_overrides
 from wheel import render_card
 
 # Page config
@@ -146,9 +146,10 @@ def assign_random_department(user_id: int):
     Retries up to 8 times with small random delay if there's a race condition.
     """
     import time
+    departments = get_departments_with_overrides()
     for attempt in range(8):
         taken = db.get_taken_departments()
-        available = [d for d in DEPARTMENTS if d["code"] not in taken]
+        available = [d for d in departments if d["code"] not in taken]
         if not available:
             return None
         pick = random.choice(available)
@@ -166,9 +167,10 @@ def assign_random_behavior(user_id: int):
     Retries up to 8 times with small random delay if there's a race condition.
     """
     import time
+    behaviors = get_behaviors_with_overrides()
     for attempt in range(8):
         taken = db.get_taken_behaviors()
-        available = [b for b in BEHAVIORS if b["name"] not in taken]
+        available = [b for b in behaviors if b["name"] not in taken]
         if not available:
             return None
         pick = random.choice(available)
@@ -195,7 +197,7 @@ def show_login():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("login_form"):
-            username = st.text_input("Username", placeholder="director1")
+            username = st.text_input("Username", placeholder="your first name")
             password = st.text_input("Password", type="password", placeholder="••••••••")
             submitted = st.form_submit_button("Enter", use_container_width=True)
 
@@ -233,19 +235,28 @@ def show_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
+    # Get override-aware card lists
+    departments = get_departments_with_overrides()
+    behaviors = get_behaviors_with_overrides()
+
     # ── BOTH ASSIGNED: show final state ──
     if assignment["department_code"] and assignment["behavior_name"]:
         st.markdown("""
         <div class="secret-reminder">
-            🤫 Don't reveal your roles to anyone!
+            🤫 Keep your behavior role secret!<br>
+            <span style="font-size: 14px; font-weight: 400; color: #aaa;">
+                Prepare to introduce your department role in a moment.
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
-        dept = next(d for d in DEPARTMENTS if d["code"] == assignment["department_code"])
-        behav = next(b for b in BEHAVIORS if b["name"] == assignment["behavior_name"])
+        dept = next((d for d in departments if d["code"] == assignment["department_code"]), None)
+        behav = next((b for b in behaviors if b["name"] == assignment["behavior_name"]), None)
 
-        render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
-        render_card(behav["name"], None, behav["description"], behav["color"], "BEHAVIOR")
+        if dept:
+            render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
+        if behav:
+            render_card(behav["name"], None, behav["description"], behav["color"], "BEHAVIOR")
 
         st.markdown("""
         <div class="complete-card">
@@ -282,8 +293,9 @@ def show_dashboard():
     # ── DEPARTMENT ASSIGNED, BEHAVIOR NOT YET ──
     if assignment["department_code"] and not assignment["behavior_name"]:
         # Show their department card
-        dept = next(d for d in DEPARTMENTS if d["code"] == assignment["department_code"])
-        render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
+        dept = next((d for d in departments if d["code"] == assignment["department_code"]), None)
+        if dept:
+            render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
 
         st.markdown("---")
 
@@ -392,6 +404,67 @@ def show_admin():
             if st.button("Cancel", use_container_width=True):
                 st.session_state.confirm_reset = False
                 st.rerun()
+
+    # ── Card Editor ──
+    st.markdown("---")
+    with st.expander("✏️ Edit Roles & Behaviors", expanded=False):
+        st.caption("Edit the descriptions that directors see on their cards. Changes apply immediately to anyone who hasn't revealed yet.")
+
+        edit_tab1, edit_tab2 = st.tabs(["Department Roles", "Behavior Roles"])
+
+        with edit_tab1:
+            departments = get_departments_with_overrides()
+            for dept in departments:
+                card_key = f"dept_{dept['code']}"
+                custom = db.get_custom_card(card_key)
+                with st.expander(f"{dept['code']} — {dept['name']}", expanded=False):
+                    new_desc = st.text_area(
+                        "Description",
+                        value=dept["description"],
+                        key=f"edit_{card_key}",
+                        height=120,
+                    )
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        if st.button("Save", key=f"save_{card_key}", use_container_width=True):
+                            db.save_custom_card(
+                                "department", card_key, dept["code"],
+                                dept["name"], new_desc, dept["color"]
+                            )
+                            st.success("Saved!")
+                            st.rerun()
+                    with col2:
+                        if custom and st.button("Reset", key=f"reset_{card_key}", use_container_width=True):
+                            db.delete_custom_card(card_key)
+                            st.success("Reset to default.")
+                            st.rerun()
+
+        with edit_tab2:
+            behaviors = get_behaviors_with_overrides()
+            for behav in behaviors:
+                card_key = f"behav_{behav['name']}"
+                custom = db.get_custom_card(card_key)
+                with st.expander(behav["name"], expanded=False):
+                    new_desc = st.text_area(
+                        "Description",
+                        value=behav["description"],
+                        key=f"edit_{card_key}",
+                        height=150,
+                    )
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        if st.button("Save", key=f"save_{card_key}", use_container_width=True):
+                            db.save_custom_card(
+                                "behavior", card_key, behav["name"],
+                                None, new_desc, behav["color"]
+                            )
+                            st.success("Saved!")
+                            st.rerun()
+                    with col2:
+                        if custom and st.button("Reset", key=f"reset_{card_key}", use_container_width=True):
+                            db.delete_custom_card(card_key)
+                            st.success("Reset to default.")
+                            st.rerun()
 
     # Logout
     st.markdown("---")

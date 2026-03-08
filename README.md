@@ -17,7 +17,18 @@ streamlit run app.py
 
 ## Login Credentials
 
-**Directors:** `director1` through `director8`, password: `bridge2026`
+**Directors:** Each person logs in with their first name and `name2026` as password:
+
+| Username | Password |
+|----------|----------|
+| emily | emily2026 |
+| emilio | emilio2026 |
+| scott | scott2026 |
+| karen | karen2026 |
+| ario | ario2026 |
+| lawrence | lawrence2026 |
+| piyush | piyush2026 |
+| gaetan | gaetan2026 |
 
 **Facilitator:** username `facilitator`, password: `facilitator`
 

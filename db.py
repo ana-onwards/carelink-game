@@ -51,26 +51,37 @@ def init_db():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS custom_cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            card_type TEXT NOT NULL,
+            card_key TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            subtitle TEXT,
+            description TEXT NOT NULL,
+            color TEXT
+        )
+    """)
+
     # Check if users exist
     cursor.execute("SELECT COUNT(*) FROM users")
     count = cursor.fetchone()[0]
 
     if count == 0:
-        default_password = hash_password("bridge2026")
         users = [
-            ("director1", "Director 1"),
-            ("director2", "Director 2"),
-            ("director3", "Director 3"),
-            ("director4", "Director 4"),
-            ("director5", "Director 5"),
-            ("director6", "Director 6"),
-            ("director7", "Director 7"),
-            ("director8", "Director 8"),
+            ("emily", "emily2026", "Emily"),
+            ("emilio", "emilio2026", "Emilio"),
+            ("scott", "scott2026", "Scott"),
+            ("karen", "karen2026", "Karen"),
+            ("ario", "ario2026", "Ario"),
+            ("lawrence", "lawrence2026", "Lawrence"),
+            ("piyush", "piyush2026", "Piyush"),
+            ("gaetan", "gaetan2026", "Gaétan"),
         ]
-        for username, display_name in users:
+        for username, password, display_name in users:
             cursor.execute(
                 "INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)",
-                (username, default_password, display_name),
+                (username, hash_password(password), display_name),
             )
             user_id = cursor.lastrowid
             cursor.execute(
@@ -270,6 +281,55 @@ def get_progress():
     total = cursor.fetchone()[0]
     conn.close()
     return {"departments_assigned": dept_count, "behaviors_assigned": behav_count, "total": total}
+
+
+# ── Custom card overrides ──
+
+def get_custom_card(card_key: str):
+    """Get a custom card override. Returns dict or None."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM custom_cards WHERE card_key = ?", (card_key,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_custom_card(card_type: str, card_key: str, title: str, subtitle: str, description: str, color: str):
+    """Save or update a custom card override."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """INSERT INTO custom_cards (card_type, card_key, title, subtitle, description, color)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(card_key) DO UPDATE SET
+             title = excluded.title,
+             subtitle = excluded.subtitle,
+             description = excluded.description,
+             color = excluded.color""",
+        (card_type, card_key, title, subtitle, description, color),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_custom_card(card_key: str):
+    """Remove a custom card override (reverts to default)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM custom_cards WHERE card_key = ?", (card_key,))
+    conn.commit()
+    conn.close()
+
+
+def get_all_custom_cards():
+    """Get all custom card overrides."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM custom_cards ORDER BY card_type, card_key")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 
 # Initialize on import
