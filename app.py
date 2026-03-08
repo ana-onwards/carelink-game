@@ -1,10 +1,10 @@
-"""Project Bridge - Spin the Wheel Group Dynamics App."""
+"""Project Bridge - Card Reveal Group Dynamics App."""
 
 import streamlit as st
 import random
 import db
 from cards import DEPARTMENTS, BEHAVIORS, BACKSTORY, MISSION_TEXT
-from wheel import render_wheel, render_card
+from wheel import render_card
 
 # Page config
 st.set_page_config(
@@ -17,17 +17,14 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Global font */
     .stApp {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     
-    /* Login styling */
     .login-header {
         text-align: center;
         padding: 40px 0 20px;
@@ -43,7 +40,6 @@ st.markdown("""
         font-size: 1em;
     }
     
-    /* Phase indicator */
     .phase-badge {
         display: inline-block;
         padding: 6px 16px;
@@ -58,15 +54,24 @@ st.markdown("""
         margin-bottom: 16px;
     }
     
-    /* Progress bar */
     .progress-text {
         text-align: center;
         color: #888;
         font-size: 13px;
-        margin-top: 8px;
+        margin: 8px 0 16px;
     }
     
-    /* Complete state */
+    .secret-reminder {
+        text-align: center;
+        color: #D4A056;
+        font-size: 18px;
+        font-weight: 600;
+        padding: 16px;
+        margin-top: 20px;
+        border: 2px dashed rgba(212, 160, 86, 0.3);
+        border-radius: 12px;
+    }
+    
     .complete-card {
         text-align: center;
         padding: 30px;
@@ -84,19 +89,6 @@ st.markdown("""
         font-size: 15px;
     }
     
-    /* Secret text */
-    .secret-reminder {
-        text-align: center;
-        color: #D4A056;
-        font-size: 18px;
-        font-weight: 600;
-        padding: 16px;
-        margin-top: 20px;
-        border: 2px dashed rgba(212, 160, 86, 0.3);
-        border-radius: 12px;
-    }
-    
-    /* Admin table */
     .admin-table {
         width: 100%;
         border-collapse: collapse;
@@ -126,35 +118,73 @@ st.markdown("""
 
 def init_session():
     """Initialize session state."""
-    if "user" not in st.session_state:
-        st.session_state.user = None
-    if "page" not in st.session_state:
-        st.session_state.page = "login"
-    if "dept_spun" not in st.session_state:
-        st.session_state.dept_spun = False
-    if "behav_spun" not in st.session_state:
-        st.session_state.behav_spun = False
-    if "assigned_dept" not in st.session_state:
-        st.session_state.assigned_dept = None
-    if "assigned_behav" not in st.session_state:
-        st.session_state.assigned_behav = None
+    defaults = {
+        "user": None,
+        "page": "login",
+        "dept_assigned": False,
+        "behav_assigned": False,
+    }
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
 
 
 def check_existing_assignment():
-    """Check if user already has assignments (e.g., after page refresh)."""
+    """Restore state if user already has assignments (e.g., page refresh)."""
     if st.session_state.user:
         assignment = db.get_assignment(st.session_state.user["id"])
         if assignment:
             if assignment["department_code"]:
-                st.session_state.assigned_dept = assignment["department_code"]
-                st.session_state.dept_spun = True
+                st.session_state.dept_assigned = True
             if assignment["behavior_name"]:
-                st.session_state.assigned_behav = assignment["behavior_name"]
-                st.session_state.behav_spun = True
+                st.session_state.behav_assigned = True
 
+
+def assign_random_department(user_id: int):
+    """
+    Atomically pick and assign a random available department.
+    Retries up to 8 times with small random delay if there's a race condition.
+    """
+    import time
+    for attempt in range(8):
+        taken = db.get_taken_departments()
+        available = [d for d in DEPARTMENTS if d["code"] not in taken]
+        if not available:
+            return None
+        pick = random.choice(available)
+        success = db.assign_department(user_id, pick["code"], pick["name"])
+        if success:
+            return pick
+        # Small random backoff before retry
+        time.sleep(random.uniform(0.05, 0.15))
+    return None
+
+
+def assign_random_behavior(user_id: int):
+    """
+    Atomically pick and assign a random available behavior.
+    Retries up to 8 times with small random delay if there's a race condition.
+    """
+    import time
+    for attempt in range(8):
+        taken = db.get_taken_behaviors()
+        available = [b for b in BEHAVIORS if b["name"] not in taken]
+        if not available:
+            return None
+        pick = random.choice(available)
+        success = db.assign_behavior(user_id, pick["name"])
+        if success:
+            return pick
+        time.sleep(random.uniform(0.05, 0.15))
+    return None
+
+
+# ============================================================
+# PAGES
+# ============================================================
 
 def show_login():
-    """Render login page."""
+    """Login page."""
     st.markdown("""
     <div class="login-header">
         <h1>🌉 Project Bridge</h1>
@@ -188,172 +218,100 @@ def show_login():
                         st.error("Invalid username or password.")
 
 
-def pick_random_available(items, taken, key_field):
-    """Pick a random item that hasn't been taken yet."""
-    available = [item for item in items if item[key_field] not in taken]
-    if not available:
-        return None
-    return random.choice(available)
-
-
 def show_dashboard():
-    """Render the main dashboard with wheel spins."""
+    """Main dashboard - reveal buttons + cards."""
     user = st.session_state.user
-    
+    user_id = user["id"]
+    assignment = db.get_assignment(user_id)
+    progress = db.get_progress()
+
     # Header
     st.markdown(f"""
     <div style="text-align: center; padding: 16px 0 8px;">
-        <div style="color: #888; font-size: 13px;">Welcome back,</div>
+        <div style="color: #888; font-size: 13px;">Welcome,</div>
         <div style="color: #D4A056; font-size: 22px; font-weight: 700;">{user['display_name']}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Progress
-    progress = db.get_progress()
-    
-    # Check if both spins are done
-    if st.session_state.dept_spun and st.session_state.behav_spun:
-        show_complete()
-        return
-
-    # PHASE 1: Department spin
-    if not st.session_state.dept_spun:
-        st.markdown('<div style="text-align:center;"><span class="phase-badge">Phase 1 — Your Department</span></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="progress-text">{progress["departments_assigned"]} of {progress["total"]} directors have spun</div>', unsafe_allow_html=True)
-
-        # Pre-pick a department for this user
-        if "pending_dept" not in st.session_state:
-            taken = db.get_taken_departments()
-            dept = pick_random_available(DEPARTMENTS, taken, "code")
-            if dept:
-                st.session_state.pending_dept = dept
-            else:
-                st.error("All departments have been assigned!")
-                return
-
-        dept = st.session_state.pending_dept
-        dept_items = [{"label": d["code"] + " — " + d["name"], "color": d["color"]} for d in DEPARTMENTS]
-        target_idx = next(i for i, d in enumerate(DEPARTMENTS) if d["code"] == dept["code"])
-
-        # Show wheel with spin button embedded in it
-        if st.button("🎰 Spin for your Department!", use_container_width=True, key="spin_dept"):
-            success = db.assign_department(user["id"], dept["code"], dept["name"])
-            if success:
-                st.session_state.assigned_dept = dept["code"]
-                st.session_state.dept_spun = True
-                st.session_state.show_dept_animation = True
-                if "pending_dept" in st.session_state:
-                    del st.session_state.pending_dept
-                st.rerun()
-            else:
-                if "pending_dept" in st.session_state:
-                    del st.session_state.pending_dept
-                st.rerun()
-
-    # Department animation + card reveal
-    elif st.session_state.dept_spun and not st.session_state.behav_spun and st.session_state.get("show_dept_animation", False):
-        dept_code = st.session_state.assigned_dept
-        dept = next(d for d in DEPARTMENTS if d["code"] == dept_code)
-        
-        st.markdown('<div style="text-align:center;"><span class="phase-badge">Your Department</span></div>', unsafe_allow_html=True)
-        
-        dept_items = [{"label": d["code"] + " — " + d["name"], "color": d["color"]} for d in DEPARTMENTS]
-        target_idx = next(i for i, d in enumerate(DEPARTMENTS) if d["code"] == dept_code)
-        render_wheel(dept_items, target_idx, wheel_id="dept_result", height=460)
-        
-        render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
-        
-        if st.button("Continue to Behavior Spin →", use_container_width=True, key="continue_behav"):
-            st.session_state.show_dept_animation = False
-            st.rerun()
-
-    # PHASE 2: Behavior spin
-    elif st.session_state.dept_spun and not st.session_state.behav_spun:
-        # Show current department assignment
-        dept_code = st.session_state.assigned_dept
-        dept = next(d for d in DEPARTMENTS if d["code"] == dept_code)
-        st.markdown(f"""
-        <div style="text-align:center; padding: 8px; margin-bottom: 8px;">
-            <span style="color: #888; font-size: 13px;">Your department:</span>
-            <span style="color: {dept['color']}; font-weight: 700; font-size: 15px; margin-left: 8px;">{dept['code']} — {dept['name']}</span>
+    # ── BOTH ASSIGNED: show final state ──
+    if assignment["department_code"] and assignment["behavior_name"]:
+        st.markdown("""
+        <div class="secret-reminder">
+            🤫 Don't reveal your roles to anyone!
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div style="text-align:center;"><span class="phase-badge">Phase 2 — Your Behavior Role</span></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="progress-text">{progress["behaviors_assigned"]} of {progress["total"]} directors have spun</div>', unsafe_allow_html=True)
+        dept = next(d for d in DEPARTMENTS if d["code"] == assignment["department_code"])
+        behav = next(b for b in BEHAVIORS if b["name"] == assignment["behavior_name"])
 
-        # Pre-pick a behavior
-        if "pending_behav" not in st.session_state:
-            taken = db.get_taken_behaviors()
-            behav = pick_random_available(BEHAVIORS, taken, "name")
-            if behav:
-                st.session_state.pending_behav = behav
-            else:
-                st.error("All behavior roles have been assigned!")
-                return
-
-        behav = st.session_state.pending_behav
-        behav_items = [{"label": b["name"], "color": b["color"]} for b in BEHAVIORS]
-        target_idx = next(i for i, b in enumerate(BEHAVIORS) if b["name"] == behav["name"])
-
-        if st.button("🎰 Spin for your Behavior!", use_container_width=True, key="spin_behav"):
-            success = db.assign_behavior(user["id"], behav["name"])
-            if success:
-                st.session_state.assigned_behav = behav["name"]
-                st.session_state.behav_spun = True
-                st.session_state.show_behav_animation = True
-                if "pending_behav" in st.session_state:
-                    del st.session_state.pending_behav
-                st.rerun()
-            else:
-                if "pending_behav" in st.session_state:
-                    del st.session_state.pending_behav
-                st.rerun()
-
-    # Behavior animation + card reveal
-    elif st.session_state.behav_spun and st.session_state.get("show_behav_animation", False):
-        behav_name = st.session_state.assigned_behav
-        behav = next(b for b in BEHAVIORS if b["name"] == behav_name)
-        
-        st.markdown('<div style="text-align:center;"><span class="phase-badge">Your Behavior Role</span></div>', unsafe_allow_html=True)
-        
-        behav_items = [{"label": b["name"], "color": b["color"]} for b in BEHAVIORS]
-        target_idx = next(i for i, b in enumerate(BEHAVIORS) if b["name"] == behav_name)
-        render_wheel(behav_items, target_idx, wheel_id="behav_result", height=460)
-        
+        render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
         render_card(behav["name"], None, behav["description"], behav["color"], "BEHAVIOR")
-        
-        if st.button("I'm Ready →", use_container_width=True, key="complete"):
-            st.session_state.show_behav_animation = False
-            st.rerun()
 
+        st.markdown("""
+        <div class="complete-card">
+            <h2>You're Ready</h2>
+            <p>Stay in character. The CEO will be back soon.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        return
 
-def show_complete():
-    """Show final state with both cards."""
-    dept_code = st.session_state.assigned_dept
-    behav_name = st.session_state.assigned_behav
-    dept = next(d for d in DEPARTMENTS if d["code"] == dept_code)
-    behav = next(b for b in BEHAVIORS if b["name"] == behav_name)
+    # ── DEPARTMENT NOT YET ASSIGNED ──
+    if not assignment["department_code"]:
+        st.markdown(
+            '<div style="text-align:center;">'
+            '<span class="phase-badge">Phase 1 — Your Department</span>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div class="progress-text">'
+            f'{progress["departments_assigned"]} of {progress["total"]} directors have revealed'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
-    st.markdown("""
-    <div class="secret-reminder">
-        🤫 Don't reveal your roles to anyone!
-    </div>
-    """, unsafe_allow_html=True)
+        if st.button("🎴  Reveal Your Department", use_container_width=True, key="reveal_dept"):
+            result = assign_random_department(user_id)
+            if result:
+                st.session_state.dept_assigned = True
+                st.rerun()
+            else:
+                st.error("All departments have been assigned. Ask the facilitator to reset.")
+        return
 
-    render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
-    render_card(behav["name"], None, behav["description"], behav["color"], "BEHAVIOR")
+    # ── DEPARTMENT ASSIGNED, BEHAVIOR NOT YET ──
+    if assignment["department_code"] and not assignment["behavior_name"]:
+        # Show their department card
+        dept = next(d for d in DEPARTMENTS if d["code"] == assignment["department_code"])
+        render_card(dept["code"], dept["name"], dept["description"], dept["color"], "DEPARTMENT")
 
-    st.markdown("""
-    <div class="complete-card">
-        <h2>You're Ready</h2>
-        <p>Stay in character. The CEO will be back soon.</p>
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown("---")
+
+        st.markdown(
+            '<div style="text-align:center;">'
+            '<span class="phase-badge">Phase 2 — Your Behavior Role</span>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div class="progress-text">'
+            f'{progress["behaviors_assigned"]} of {progress["total"]} directors have revealed'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        if st.button("🎴  Reveal Your Behavior", use_container_width=True, key="reveal_behav"):
+            result = assign_random_behavior(user_id)
+            if result:
+                st.session_state.behav_assigned = True
+                st.rerun()
+            else:
+                st.error("All behaviors have been assigned. Ask the facilitator to reset.")
+        return
 
 
 def show_admin():
-    """Render facilitator admin panel."""
+    """Facilitator admin panel."""
     st.markdown("""
     <div style="text-align: center; padding: 20px 0 10px;">
         <div style="color: #D4A056; font-size: 28px; font-weight: 800;">🌉 Project Bridge</div>
@@ -361,14 +319,14 @@ def show_admin():
     </div>
     """, unsafe_allow_html=True)
 
-    # Backstory expander
+    # Backstory
     with st.expander("📖 Company Backstory & Mission", expanded=False):
         st.markdown(BACKSTORY)
         st.markdown("---")
         st.markdown("**Read this aloud to participants:**")
         st.markdown(f"*\"{MISSION_TEXT}\"*")
 
-    # Progress
+    # Progress metrics
     progress = db.get_progress()
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -394,12 +352,19 @@ def show_admin():
         if a['department_code'] and a['behavior_name']:
             status = '<span class="status-complete">✓ Ready</span>'
         elif a['department_code']:
-            status = '<span class="status-partial">◐ Spinning...</span>'
+            status = '<span class="status-partial">◐ In progress</span>'
         else:
             status = '<span class="status-waiting">○ Waiting</span>'
 
-        table_html += f'<tr><td><strong>{a["display_name"]}</strong><br><span style="color:#666;font-size:12px;">{a["username"]}</span></td>'
-        table_html += f'<td>{dept_display}</td><td>{behav_display}</td><td>{status}</td></tr>'
+        table_html += (
+            f'<tr>'
+            f'<td><strong>{a["display_name"]}</strong><br>'
+            f'<span style="color:#666;font-size:12px;">{a["username"]}</span></td>'
+            f'<td>{dept_display}</td>'
+            f'<td>{behav_display}</td>'
+            f'<td>{status}</td>'
+            f'</tr>'
+        )
 
     table_html += '</tbody></table>'
     st.markdown(table_html, unsafe_allow_html=True)
@@ -411,7 +376,11 @@ def show_admin():
         if st.button("🔄 Reset All Assignments", use_container_width=True, type="secondary"):
             st.session_state.confirm_reset = True
 
-    if hasattr(st.session_state, 'confirm_reset') and st.session_state.confirm_reset:
+    with col2:
+        if st.button("↻ Refresh", use_container_width=True):
+            st.rerun()
+
+    if st.session_state.get("confirm_reset", False):
         st.warning("Are you sure? This will clear all assignments.")
         col1, col2 = st.columns(2)
         with col1:
@@ -423,11 +392,6 @@ def show_admin():
             if st.button("Cancel", use_container_width=True):
                 st.session_state.confirm_reset = False
                 st.rerun()
-
-    # Auto-refresh
-    with col2:
-        if st.button("↻ Refresh", use_container_width=True):
-            st.rerun()
 
     # Logout
     st.markdown("---")
@@ -442,11 +406,11 @@ def show_admin():
 
 init_session()
 
-# Check for existing assignments on load
-if st.session_state.user and not st.session_state.dept_spun:
+# Restore state on refresh
+if st.session_state.user:
     check_existing_assignment()
 
-# Route to the right page
+# Route
 if st.session_state.page == "login":
     show_login()
 elif st.session_state.page == "admin":
@@ -457,8 +421,6 @@ elif st.session_state.page == "dashboard":
         st.rerun()
     else:
         show_dashboard()
-
-        # Logout at the bottom
         st.markdown("---")
         if st.button("← Logout", key="user_logout"):
             for key in list(st.session_state.keys()):
