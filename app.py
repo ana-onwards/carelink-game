@@ -69,21 +69,21 @@ st.markdown("""
     .login-header h1 {
         font-size: 2.4em;
         font-weight: 800;
-        color: #D4A056;
+        color: #C15F3C;
         margin-bottom: 4px;
     }
     .login-header p {
-        color: #888;
+        color: #8A8680;
         font-size: 1em;
     }
     
     .phase-badge {
         display: inline-block;
         padding: 6px 16px;
-        background: rgba(212, 160, 86, 0.15);
-        border: 1px solid rgba(212, 160, 86, 0.3);
+        background: rgba(193, 95, 60, 0.1);
+        border: 1px solid rgba(193, 95, 60, 0.25);
         border-radius: 20px;
-        color: #D4A056;
+        color: #C15F3C;
         font-size: 12px;
         font-weight: 600;
         letter-spacing: 1px;
@@ -93,36 +93,36 @@ st.markdown("""
     
     .progress-text {
         text-align: center;
-        color: #888;
+        color: #8A8680;
         font-size: 13px;
         margin: 8px 0 16px;
     }
     
     .secret-reminder {
         text-align: center;
-        color: #D4A056;
+        color: #C15F3C;
         font-size: 18px;
         font-weight: 600;
         padding: 16px;
         margin-top: 20px;
-        border: 2px dashed rgba(212, 160, 86, 0.3);
+        border: 2px dashed rgba(193, 95, 60, 0.3);
         border-radius: 12px;
     }
     
     .complete-card {
         text-align: center;
         padding: 30px;
-        background: rgba(212, 160, 86, 0.08);
-        border: 1px solid rgba(212, 160, 86, 0.2);
+        background: rgba(193, 95, 60, 0.06);
+        border: 1px solid rgba(193, 95, 60, 0.15);
         border-radius: 16px;
         margin: 20px 0;
     }
     .complete-card h2 {
-        color: #D4A056;
+        color: #C15F3C;
         margin-bottom: 8px;
     }
     .complete-card p {
-        color: #aaa;
+        color: #8A8680;
         font-size: 15px;
     }
     
@@ -132,8 +132,8 @@ st.markdown("""
         margin: 16px 0;
     }
     .admin-table th {
-        background: rgba(212, 160, 86, 0.2);
-        color: #D4A056;
+        background: rgba(193, 95, 60, 0.1);
+        color: #C15F3C;
         padding: 10px 12px;
         text-align: left;
         font-size: 12px;
@@ -142,13 +142,13 @@ st.markdown("""
     }
     .admin-table td {
         padding: 10px 12px;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        color: #ccc;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        color: #3D3929;
         font-size: 14px;
     }
-    .status-waiting { color: #666; }
-    .status-partial { color: #E8871E; }
-    .status-complete { color: #4CAF50; }
+    .status-waiting { color: #B1ADA1; }
+    .status-partial { color: #C15F3C; }
+    .status-complete { color: #5A8A5E; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -267,8 +267,8 @@ def show_dashboard():
     # Header
     st.markdown(f"""
     <div style="text-align: center; padding: 16px 0 8px;">
-        <div style="color: #888; font-size: 13px;">Welcome,</div>
-        <div style="color: #D4A056; font-size: 22px; font-weight: 700;">{user['display_name']}</div>
+        <div style="color: #8A8680; font-size: 13px;">Welcome,</div>
+        <div style="color: #C15F3C; font-size: 22px; font-weight: 700;">{user['display_name']}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -281,7 +281,7 @@ def show_dashboard():
         st.markdown("""
         <div class="secret-reminder">
             🤫 Keep your behavior role secret!<br>
-            <span style="font-size: 14px; font-weight: 400; color: #aaa;">
+            <span style="font-size: 14px; font-weight: 400; color: #8A8680;">
                 Prepare to introduce your department role in a moment.
             </span>
         </div>
@@ -363,8 +363,8 @@ def show_admin():
     """Facilitator admin panel."""
     st.markdown("""
     <div style="text-align: center; padding: 20px 0 10px;">
-        <div style="color: #D4A056; font-size: 28px; font-weight: 800;">🌉 Project Bridge</div>
-        <div style="color: #888; font-size: 14px;">Facilitator Panel</div>
+        <div style="color: #C15F3C; font-size: 28px; font-weight: 800;">🌉 Project Bridge</div>
+        <div style="color: #8A8680; font-size: 14px;">Facilitator Panel</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -445,7 +445,17 @@ def show_admin():
     # ── Card Editor ──
     st.markdown("---")
     with st.expander("✏️ Edit Roles & Behaviors", expanded=False):
-        st.caption("Edit the descriptions that directors see on their cards. Changes apply immediately to anyone who hasn't revealed yet.")
+        st.caption("Edit the titles and descriptions that directors see on their cards. Changes apply immediately to anyone who hasn't revealed yet.")
+
+        # Reset all customizations button
+        all_customs = db.get_all_custom_cards()
+        if all_customs:
+            if st.button("🔄 Reset All Cards to Original", key="reset_all_cards", use_container_width=True):
+                for c in all_customs:
+                    db.delete_custom_card(c["card_key"])
+                st.success(f"Reset {len(all_customs)} card(s) to original.")
+                st.rerun()
+            st.markdown("")
 
         edit_tab1, edit_tab2 = st.tabs(["Department Roles", "Behavior Roles"])
 
@@ -454,7 +464,15 @@ def show_admin():
             for dept in departments:
                 card_key = f"dept_{dept['code']}"
                 custom = db.get_custom_card(card_key)
-                with st.expander(f"{dept['code']} — {dept['name']}", expanded=False):
+                label = f"{dept['code']} — {dept['name']}"
+                if custom:
+                    label += " ✎"
+                with st.expander(label, expanded=False):
+                    new_name = st.text_input(
+                        "Department Name",
+                        value=dept["name"],
+                        key=f"title_{card_key}",
+                    )
                     new_desc = st.text_area(
                         "Description",
                         value=dept["description"],
@@ -466,7 +484,7 @@ def show_admin():
                         if st.button("Save", key=f"save_{card_key}", use_container_width=True):
                             db.save_custom_card(
                                 "department", card_key, dept["code"],
-                                dept["name"], new_desc, dept["color"]
+                                new_name, new_desc, dept["color"]
                             )
                             st.success("Saved!")
                             st.rerun()
@@ -481,7 +499,15 @@ def show_admin():
             for behav in behaviors:
                 card_key = f"behav_{behav['name']}"
                 custom = db.get_custom_card(card_key)
-                with st.expander(behav["name"], expanded=False):
+                label = behav["name"]
+                if custom:
+                    label += " ✎"
+                with st.expander(label, expanded=False):
+                    new_title = st.text_input(
+                        "Role Title",
+                        value=behav["name"],
+                        key=f"title_{card_key}",
+                    )
                     new_desc = st.text_area(
                         "Description",
                         value=behav["description"],
@@ -492,7 +518,7 @@ def show_admin():
                     with col1:
                         if st.button("Save", key=f"save_{card_key}", use_container_width=True):
                             db.save_custom_card(
-                                "behavior", card_key, behav["name"],
+                                "behavior", card_key, new_title,
                                 None, new_desc, behav["color"]
                             )
                             st.success("Saved!")

@@ -9,11 +9,11 @@ def render_card(title: str, subtitle: str, description: str, color: str, card_ty
     <div style="
         max-width: 420px;
         margin: 16px auto;
-        background: linear-gradient(145deg, #16213e, #1a1a2e);
+        background: #FFFFFF;
         border-radius: 16px;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        border: 1px solid rgba(212, 160, 86, 0.2);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.06);
         animation: cardReveal 0.6s ease;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     ">
@@ -33,13 +33,13 @@ def render_card(title: str, subtitle: str, description: str, color: str, card_ty
                 font-size: 26px;
                 font-weight: 800;
                 color: white;
-                text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                text-shadow: 0 2px 4px rgba(0,0,0,0.2);
             ">{title}</div>
             {"<div style='font-size: 14px; color: rgba(255,255,255,0.8); margin-top: 4px;'>" + subtitle + "</div>" if subtitle else ""}
         </div>
         <div style="
             padding: 24px;
-            color: #E0E0E0;
+            color: #3D3929;
             font-size: 15px;
             line-height: 1.6;
         ">{description}</div>
