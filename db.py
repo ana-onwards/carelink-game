@@ -63,22 +63,36 @@ def init_db():
         )
     """)
 
-    # Check if users exist
+    # Check if users need to be created or migrated
     cursor.execute("SELECT COUNT(*) FROM users")
     count = cursor.fetchone()[0]
 
+    expected_users = [
+        ("emily", "emily2026", "Emily"),
+        ("emilio", "emilio2026", "Emilio"),
+        ("scott", "scott2026", "Scott"),
+        ("karen", "karen2026", "Karen"),
+        ("ario", "ario2026", "Ario"),
+        ("lawrence", "lawrence2026", "Lawrence"),
+        ("piyush", "piyush2026", "Piyush"),
+        ("gaetan", "gaetan2026", "Gaetan"),
+    ]
+
+    # Check if we have the right users (not old director1-8)
+    needs_rebuild = False
     if count == 0:
-        users = [
-            ("emily", "emily2026", "Emily"),
-            ("emilio", "emilio2026", "Emilio"),
-            ("scott", "scott2026", "Scott"),
-            ("karen", "karen2026", "Karen"),
-            ("ario", "ario2026", "Ario"),
-            ("lawrence", "lawrence2026", "Lawrence"),
-            ("piyush", "piyush2026", "Piyush"),
-            ("gaetan", "gaetan2026", "Gaetan"),
-        ]
-        for username, password, display_name in users:
+        needs_rebuild = True
+    else:
+        cursor.execute("SELECT username FROM users LIMIT 1")
+        first_user = cursor.fetchone()
+        if first_user and first_user["username"] not in [u[0] for u in expected_users]:
+            needs_rebuild = True
+
+    if needs_rebuild:
+        # Clear old data and rebuild
+        cursor.execute("DELETE FROM assignments")
+        cursor.execute("DELETE FROM users")
+        for username, password, display_name in expected_users:
             cursor.execute(
                 "INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)",
                 (username, hash_password(password), display_name),
