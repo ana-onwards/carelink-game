@@ -3,8 +3,45 @@
 import streamlit as st
 import random
 import db
-from cards import DEPARTMENTS, BEHAVIORS, BACKSTORY, MISSION_TEXT, get_departments_with_overrides, get_behaviors_with_overrides
+from cards import DEPARTMENTS, BEHAVIORS, BACKSTORY, MISSION_TEXT
 from wheel import render_card
+
+
+def get_departments_with_overrides():
+    """Return departments list with any custom overrides applied."""
+    customs = {c["card_key"]: c for c in db.get_all_custom_cards() if c["card_type"] == "department"}
+    result = []
+    for dept in DEPARTMENTS:
+        key = f"dept_{dept['code']}"
+        if key in customs:
+            c = customs[key]
+            result.append({
+                "code": dept["code"],
+                "name": c.get("subtitle") or dept["name"],
+                "color": c.get("color") or dept["color"],
+                "description": c["description"],
+            })
+        else:
+            result.append(dict(dept))
+    return result
+
+
+def get_behaviors_with_overrides():
+    """Return behaviors list with any custom overrides applied."""
+    customs = {c["card_key"]: c for c in db.get_all_custom_cards() if c["card_type"] == "behavior"}
+    result = []
+    for behav in BEHAVIORS:
+        key = f"behav_{behav['name']}"
+        if key in customs:
+            c = customs[key]
+            result.append({
+                "name": c.get("title") or behav["name"],
+                "color": c.get("color") or behav["color"],
+                "description": c["description"],
+            })
+        else:
+            result.append(dict(behav))
+    return result
 
 # Page config
 st.set_page_config(
