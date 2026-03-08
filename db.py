@@ -95,6 +95,7 @@ def init_db():
 
 def authenticate(username: str, password: str):
     """Authenticate user. Returns user dict or None."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -110,6 +111,7 @@ def authenticate(username: str, password: str):
 
 def get_assignment(user_id: int):
     """Get current assignment for a user."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -129,6 +131,7 @@ def get_assignment(user_id: int):
 
 def get_taken_departments():
     """Get list of department codes already assigned."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -141,6 +144,7 @@ def get_taken_departments():
 
 def get_taken_behaviors():
     """Get list of behavior names already assigned."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -241,6 +245,7 @@ def assign_behavior(user_id: int, behavior_name: str) -> bool:
 
 def get_all_assignments():
     """Get all assignments for the admin panel."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -257,6 +262,7 @@ def get_all_assignments():
 
 def reset_all():
     """Reset all assignments for a new round."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -271,6 +277,7 @@ def reset_all():
 
 def get_progress():
     """Get overall progress stats."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM assignments WHERE department_code IS NOT NULL")
@@ -287,6 +294,7 @@ def get_progress():
 
 def get_custom_card(card_key: str):
     """Get a custom card override. Returns dict or None."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM custom_cards WHERE card_key = ?", (card_key,))
@@ -297,6 +305,7 @@ def get_custom_card(card_key: str):
 
 def save_custom_card(card_type: str, card_key: str, title: str, subtitle: str, description: str, color: str):
     """Save or update a custom card override."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -315,6 +324,7 @@ def save_custom_card(card_type: str, card_key: str, title: str, subtitle: str, d
 
 def delete_custom_card(card_key: str):
     """Remove a custom card override (reverts to default)."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM custom_cards WHERE card_key = ?", (card_key,))
@@ -324,6 +334,7 @@ def delete_custom_card(card_key: str):
 
 def get_all_custom_cards():
     """Get all custom card overrides."""
+    ensure_initialized()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM custom_cards ORDER BY card_type, card_key")
@@ -332,5 +343,13 @@ def get_all_custom_cards():
     return [dict(row) for row in rows]
 
 
-# Initialize on import
-init_db()
+# Flag to track initialization
+_initialized = False
+
+
+def ensure_initialized():
+    """Initialize DB if not already done. Call this before any DB operation."""
+    global _initialized
+    if not _initialized:
+        init_db()
+        _initialized = True
