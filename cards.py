@@ -79,17 +79,6 @@ DEPARTMENTS = [
             "down — but with veteran organizations involved, the compliance stakes are higher than usual."
         ),
     },
-    {
-        "code": "CSO",
-        "name": "Strategy",
-        "color": "#5C946E",
-        "description": (
-            "You're thinking about how this conference positions CareLink for the next 5 years. "
-            "The Veterans Alliance partnership could transform the company — but only if the "
-            "conference tells the right story. What makes CareLink different from every other "
-            "health-tech vendor? You think big picture and sometimes lose patience with tactical details."
-        ),
-    },
 ]
 
 BEHAVIORS = [
@@ -116,17 +105,6 @@ BEHAVIORS = [
         ),
     },
     {
-        "name": "The Empire Builder",
-        "color": "#9B2335",
-        "description": (
-            "You are laser-focused on your department's goals. You think company-first is a nice "
-            "idea, but your team's success is what actually matters. Every suggestion you make "
-            "protects or grows your turf. When resources are discussed, you steer them toward your "
-            "area. You frame everything as strategic, but it's really about making sure your "
-            "department wins — Veterans Alliance deal or not."
-        ),
-    },
-    {
         "name": "The Spotlight Seeker",
         "color": "#E8871E",
         "description": (
@@ -150,14 +128,15 @@ BEHAVIORS = [
         ),
     },
     {
-        "name": "The Side-Dealer",
+        "name": "The Self-Proclaimed Star",
         "color": "#5B5EA6",
         "description": (
-            "You had a private conversation with the CEO before this meeting and think you know "
-            "what she really wants for the conference. You've been at CareLink long enough to "
-            "have the CEO's ear. Drop hints like \"I think leadership is leaning toward X\" "
-            "without revealing your source. You steer the group by implying the decision is "
-            "already half-made. You enjoy the leverage."
+            "You've been at CareLink for 2 years and you genuinely believe you're one of the "
+            "strongest leaders in the room. You give unsolicited advice freely, talk over people, "
+            "and reference your past wins constantly. When someone pushes back, you dismiss it — "
+            "they just don't get it. Your manager has given you feedback about this, but you think "
+            "the feedback says more about them than about you. You're not malicious — you truly "
+            "can't see the gap between how you see yourself and how others experience you."
         ),
     },
     {

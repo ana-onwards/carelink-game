@@ -74,18 +74,20 @@ def init_db():
         ("karen", "karen2026", "Karen"),
         ("ario", "ario2026", "Ario"),
         ("lawrence", "lawrence2026", "Lawrence"),
-        ("piyush", "piyush2026", "Piyush"),
         ("gaetan", "gaetan2026", "Gaetan"),
     ]
 
-    # Check if we have the right users (not old director1-8)
+    # Check if we have the right users
     needs_rebuild = False
     if count == 0:
         needs_rebuild = True
+    elif count != len(expected_users):
+        needs_rebuild = True
     else:
-        cursor.execute("SELECT username FROM users LIMIT 1")
-        first_user = cursor.fetchone()
-        if first_user and first_user["username"] not in [u[0] for u in expected_users]:
+        cursor.execute("SELECT username FROM users ORDER BY id")
+        current_usernames = [row["username"] for row in cursor.fetchall()]
+        expected_usernames = [u[0] for u in expected_users]
+        if current_usernames != expected_usernames:
             needs_rebuild = True
 
     if needs_rebuild:
