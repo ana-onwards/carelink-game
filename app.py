@@ -375,6 +375,18 @@ def show_admin():
         st.markdown("**Read this aloud to participants:**")
         st.markdown(f"*\"{MISSION_TEXT}\"*")
 
+    # Why this matters
+    with st.expander("🧠 Why This Exercise Matters", expanded=False):
+        st.markdown("""
+When we do calibration or performance reviews, we evaluate **individuals** — "Emily is strong, Scott needs development." But we bring all of our personal biases into that assessment. We're judging people through our own lens.
+
+What we rarely do is look at the **group as a system.** Wilfred Bion showed that groups behave far more predictably than individuals. Put certain behaviors in a room and the group will respond in patterns — regardless of who the specific people are. A "checked out" person doesn't just underperform individually — they create a vacuum that changes how everyone else shows up. A "side-dealer" doesn't just play politics — they erode trust across the entire room.
+
+This exercise flips the lens. Instead of evaluating people, we're going to **experience what behaviors do to a group.** Watch how the room reacts. Watch how quickly the energy shifts. Watch who steps up and who retreats.
+
+The goal isn't to label anyone. It's to recognize: **the dynamics you'll feel in this room are the same ones playing out in your real teams right now.** Once you can see them, you can change them.
+""")
+
     # Progress metrics
     progress = db.get_progress()
     col1, col2, col3 = st.columns(3)
