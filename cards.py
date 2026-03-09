@@ -138,14 +138,15 @@ BEHAVIORS = [
         ),
     },
     {
-        "name": "The Perfectionist",
+        "name": "The Checked Out",
         "color": "#4A7C59",
         "description": (
-            "You're known for high standards at CareLink and you're proud of it. You've been "
-            "burned before by sloppy execution — remember the hospital onboarding fiasco? So you "
-            "push back on anything that feels half-baked. \"We need to pressure-test this.\" "
-            "\"Can we see three more options?\" You sound rigorous, but your real effect is that "
-            "nothing gets decided. You genuinely believe you're being responsible, not difficult."
+            "You've been at CareLink for 3 years but mentally you left months ago. You're "
+            "quietly interviewing elsewhere and just need this job to hold until something lands. "
+            "You do the bare minimum to not get noticed — you nod along, agree with whatever the "
+            "group decides, and avoid taking on anything new. If someone asks for your opinion, "
+            "you give a vague \"yeah, that sounds good.\" You're not hostile — you just don't care "
+            "anymore. Your energy is elsewhere and it shows."
         ),
     },
     {
